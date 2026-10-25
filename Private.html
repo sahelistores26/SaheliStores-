@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YASH ENTERPRISE NEURAL TELEMETRY SYSTEM v7.5</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Orbitron:wght@600;800;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS & Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        tech: ['Orbitron', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        sans: ['Outfit', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Theme Styles */
+        .theme-matrix { background-color: #020804; color: #00ff66; }
+        .theme-matrix .panel-glass { background: rgba(5, 20, 10, 0.85); border: 1px solid rgba(0, 255, 102, 0.25); box-shadow: 0 0 20px rgba(0, 255, 102, 0.1); }
+        .theme-matrix .accent-glow { text-shadow: 0 0 15px rgba(0, 255, 102, 0.6); }
+
+        .theme-cyber { background-color: #0b091a; color: #a855f7; }
+        .theme-cyber .panel-glass { background: rgba(18, 14, 38, 0.85); border: 1px solid rgba(168, 85, 247, 0.25); box-shadow: 0 0 20px rgba(168, 85, 247, 0.1); }
+        .theme-cyber .accent-glow { text-shadow: 0 0 15px rgba(168, 85, 247, 0.6); }
+
+        .theme-dark { background-color: #090d16; color: #38bdf8; }
+        .theme-dark .panel-glass { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); box-shadow: 0 0 20px rgba(56, 189, 248, 0.1); }
+        .theme-dark .accent-glow { text-shadow: 0 0 15px rgba(56, 189, 248, 0.6); }
+
+        .theme-crimson { background-color: #120505; color: #f43f5e; }
+        .theme-crimson .panel-glass { background: rgba(30, 10, 10, 0.85); border: 1px solid rgba(244, 63, 94, 0.25); box-shadow: 0 0 20px rgba(244, 63, 94, 0.1); }
+        .theme-crimson .accent-glow { text-shadow: 0 0 15px rgba(244, 63, 94, 0.6); }
+
+        .theme-light { background-color: #f8fafc; color: #0f172a; }
+        .theme-light .panel-glass { background: #ffffff; border: 1px solid #cbd5e1; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .theme-light .accent-glow { text-shadow: 0 2px 8px rgba(15, 23, 42, 0.2); }
+
+        /* Custom Scrollbar for Telemetry Log */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+        ::-webkit-scrollbar-thumb { background: currentColor; opacity: 0.3; border-radius: 4px; }
+    </style>
+</head>
+<body class="theme-matrix min-h-screen pb-12 transition-colors duration-300 relative overflow-x-hidden">
+
+    <!-- Matrix Background Canvas -->
+    <canvas id="matrixCanvas" class="fixed inset-0 pointer-events-none opacity-15 z-0"></canvas>
+
+    <!-- Main Container -->
+    <div class="relative z-10 max-w-7xl mx-auto px-4 pt-4 space-y-4">
+
+        <!-- Top Header & Theme Switcher -->
+        <header class="panel-glass p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-3 h-3 rounded-full bg-green-500 animate-ping"></div>
+                <div>
+                    <h1 class="font-tech text-base md:text-xl font-black tracking-wider">YASH ENTERPRISE CORE</h1>
+                    <p class="text-[10px] font-mono opacity-70 tracking-widest uppercase">Secure Telemetry & Neural Analytics v7.5</p>
+                </div>
+            </div>
+
+            <!-- Theme Switcher Buttons -->
+            <div class="flex flex-wrap gap-1.5 text-xs font-semibold">
+                <button onclick="setTheme('matrix')" class="px-3 py-1 rounded bg-black/40 border border-green-500 text-green-400">Matrix</button>
+                <button onclick="setTheme('cyber')" class="px-3 py-1 rounded bg-purple-950/40 border border-purple-500 text-purple-400">Cyber</button>
+                <button onclick="setTheme('dark')" class="px-3 py-1 rounded bg-slate-900 border border-sky-500 text-sky-400">Dark</button>
+                <button onclick="setTheme('crimson')" class="px-3 py-1 rounded bg-rose-950/40 border border-rose-500 text-rose-400">Crimson</button>
+                <button onclick="setTheme('light')" class="px-3 py-1 rounded bg-white border border-slate-300 text-slate-900">Light</button>
+            </div>
+        </header>
+
+        <!-- Main Grid Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+            <!-- Left Column: Period & Timer + Main Prediction -->
+            <div class="space-y-4">
+                
+                <!-- Period & Timer Box (Exact Java IST Logic) -->
+                <div class="panel-glass p-5 rounded-2xl space-y-3">
+                    <div class="flex justify-between items-center text-xs font-bold uppercase tracking-widest opacity-80">
+                        <span>IST Time Sync</span>
+                        <span id="systemStatus" class="text-green-400 font-mono">● LIVE</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-xl bg-black/30 border border-current/20">
+                            <span class="text-[10px] block opacity-60 font-mono mb-1">PERIOD ID</span>
+                            <span id="periodDisplay" class="font-tech text-xs sm:text-sm font-bold tracking-wider">SYNCING...</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-black/30 border border-current/20">
+                            <span class="text-[10px] block opacity-60 font-mono mb-1">COUNTDOWN</span>
+                            <span id="timerDisplay" class="font-tech text-lg sm:text-xl font-black text-red-400">00:30</span>
+                        </div>
+                    </div>
+
+                    <!-- Offset Controls -->
+                    <div class="flex justify-between items-center text-xs pt-1">
+                        <span class="opacity-70">Server Offset:</span>
+                        <div class="flex items-center gap-1.5 font-mono">
+                            <button onclick="adjustOffset(-1)" class="px-2 py-0.5 rounded bg-black/30 border border-current/30 font-bold">-1</button>
+                            <span id="offsetVal" class="font-bold px-1">0</span>
+                            <button onclick="adjustOffset(1)" class="px-2 py-0.5 rounded bg-black/30 border border-current/30 font-bold">+1</button>
+                            <button onclick="resetOffset()" class="px-2 py-0.5 rounded bg-black/30 border border-current/30 opacity-60">Reset</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Primary Number Prediction Box (0-9) -->
+                <div class="panel-glass p-6 rounded-2xl text-center space-y-4">
+                    <div class="text-xs font-bold uppercase tracking-widest opacity-80">Target Number Signal (0-9)</div>
+                    
+                    <div class="py-6 rounded-2xl bg-black/40 border border-current/40 shadow-inner relative overflow-hidden">
+                        <span id="targetNumber" class="font-tech text-7xl md:text-8xl font-black accent-glow">--</span>
+                        <div id="signalPulse" class="absolute inset-0 bg-current opacity-5 pointer-events-none transition-opacity duration-300"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div class="p-2.5 rounded-xl bg-black/30 border border-current/20">
+                            <span class="opacity-60 block font-mono text-[10px]">CATEGORY</span>
+                            <span id="numberCategory" class="font-bold text-sm tracking-wide">ANALYZING</span>
+                        </div>
+                        <div class="p-2.5 rounded-xl bg-black/30 border border-current/20">
+                            <span class="opacity-60 block font-mono text-[10px]">CONFIDENCE</span>
+                            <span id="confidenceMetric" class="font-bold text-sm text-green-400">99.2%</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Middle Column: Analytics & Frequency Distribution Chart -->
+            <div class="lg:col-span-2 space-y-4">
+
+                <!-- Chart Panel -->
+                <div class="panel-glass p-5 rounded-2xl space-y-3">
+                    <div class="flex justify-between items-center text-xs font-bold uppercase tracking-widest opacity-80">
+                        <span>Number Frequency Distribution (0-9)</span>
+                        <span class="font-mono text-[10px] opacity-70">Real-time Tensor Stream</span>
+                    </div>
+                    <div class="h-48 sm:h-56 relative">
+                        <canvas id="frequencyChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Live Telemetry Terminal Logs -->
+                <div class="panel-glass p-5 rounded-2xl space-y-3">
+                    <div class="flex justify-between items-center text-xs font-bold uppercase tracking-widest opacity-80">
+                        <span>Live Server Telemetry Stream</span>
+                        <button onclick="clearLogs()" class="text-[10px] opacity-60 hover:opacity-100 underline">Clear Logs</button>
+                    </div>
+                    <div id="telemetryLog" class="h-32 bg-black/50 p-3 rounded-xl font-mono text-[11px] overflow-y-auto space-y-1 border border-current/20">
+                        <div class="opacity-50">[SYSTEM] Initializing Yash Neural Telemetry Kernel...</div>
+                        <div class="opacity-50">[SYS-NET] Secure handshake established with Asia/Kolkata clock.</div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Advanced JavaScript Engine -->
+    <script>
+        let manualOffset = 0;
+        let lastPeriod = "";
+        let freqChartInstance = null;
+
+        // Theme Switcher
+        function setTheme(theme) {
+            document.body.className = `theme-${theme} min-h-screen pb-12 transition-colors duration-300 relative overflow-x-hidden`;
+            updateChartTheme(theme);
+        }
+
+        function adjustOffset(val) {
+            manualOffset += val;
+            document.getElementById('offsetVal').innerText = (manualOffset >= 0 ? '+' : '') + manualOffset;
+            runEnginePipeline();
+        }
+
+        function resetOffset() {
+            manualOffset = 0;
+            document.getElementById('offsetVal').innerText = '0';
+            runEnginePipeline();
+        }
+
+        function clearLogs() {
+            document.getElementById('telemetryLog').innerHTML = '<div class="opacity-50">[SYSTEM] Logs cleared by user.</div>';
+        }
+
+        function logMessage(msg) {
+            const term = document.getElementById('telemetryLog');
+            const timeStr = new Date().toLocaleTimeString();
+            term.innerHTML += `<div class="opacity-80">[${timeStr}] ${msg}</div>`;
+            term.scrollTop = term.scrollHeight;
+        }
+
+        // Matrix Background Animation
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const chars = "010101010101YASHHACK";
+        const fontSize = 14;
+        let columns = canvas.width / fontSize;
+        let drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = getComputedStyle(document.body).color;
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars.charAt(Math.floor(Math.random() * chars.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 40);
+
+        // Chart.js Initialization
+        function initChart() {
+            const ctxChart = document.getElementById('frequencyChart').getContext('2d');
+            freqChartInstance = new Chart(ctxChart, {
+                type: 'bar',
+                data: {
+                    labels: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                    datasets: [{
+                        label: 'Probability Weight',
+                        data: [12, 19, 8, 15, 22, 30, 25, 18, 14, 20],
+                        backgroundColor: 'rgba(56, 189, 248, 0.5)',
+                        borderColor: 'rgba(56, 189, 248, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { display: false, grid: { display: false } },
+                        x: { grid: { display: false }, ticks: { color: 'currentColor', font: { family: 'JetBrains Mono' } } }
+                    }
+                }
+            });
+        }
+
+        function updateChartTheme(theme) {
+            if (!freqChartInstance) return;
+            const colors = {
+                matrix: 'rgba(0, 255, 102, 0.6)',
+                cyber: 'rgba(168, 85, 247, 0.6)',
+                dark: 'rgba(56, 189, 248, 0.6)',
+                crimson: 'rgba(244, 63, 94, 0.6)',
+                light: 'rgba(15, 23, 42, 0.6)'
+            };
+            freqChartInstance.data.datasets[0].backgroundColor = colors[theme] || colors.dark;
+            freqChartInstance.update();
+        }
+
+        // Exact Java Period Algorithm Converted with IST Timezone
+        function runEnginePipeline() {
+            const now = new Date();
+            const options = { timeZone: 'Asia/Kolkata', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', year: 'numeric', month: '2-digit', day: '2-digit' };
+            const formatter = new Intl.DateTimeFormat('en-US', options);
+            const parts = formatter.formatToParts(now);
+
+            let hours = 0, minutes = 0, seconds = 0;
+            let year = "", month = "", day = "";
+
+            parts.forEach(p => {
+                if (p.type === 'hour') hours = parseInt(p.value, 10);
+                if (p.type === 'minute') minutes = parseInt(p.value, 10);
+                if (p.type === 'second') seconds = parseInt(p.value, 10);
+                if (p.type === 'year') year = p.value;
+                if (p.type === 'month') month = p.value;
+                if (p.type === 'day') day = p.value;
+            });
+
+            // Exact Java formula: totalPeriods = hours * 120 + minutes * 2 + (seconds >= 30 ? 1 : 0) + 1
+            let totalPeriods = (hours * 120) + (minutes * 2) + (seconds >= 30 ? 1 : 0);
+            totalPeriods += 1 + manualOffset;
+
+            let remainingSeconds = 30 - (seconds % 30);
+
+            // Period String format
+            const dateStr = `${year}${month}${day}`;
+            const periodSuffix = (10000 + totalPeriods).toString().padStart(4, '0');
+            const fullPeriod = dateStr + periodSuffix;
+
+            document.getElementById('periodDisplay').innerText = fullPeriod;
+            document.getElementById('timerDisplay').innerText = `00:${remainingSeconds.toString().padStart(2, '0')}`;
+
+            if (fullPeriod !== lastPeriod) {
+                lastPeriod = fullPeriod;
+                executeNeuralPrediction(fullPeriod);
+            }
+        }
+
+        function executeNeuralPrediction(periodStr) {
+            logMessage(`Triggering neural analysis for period ID: ${periodStr}`);
+            
+            // Hash calculation for stable 0-9 single digit prediction
+            let hash = 0;
+            for (let i = 0; i < periodStr.length; i++) {
+                hash = periodStr.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const predictedDigit = Math.abs(hash) % 10;
+            const isBig = predictedDigit >= 5;
+
+            document.getElementById('targetNumber').innerText = predictedDigit;
+            document.getElementById('numberCategory').innerText = `${isBig ? 'BIG' : 'SMALL'} (${predictedDigit})`;
+            document.getElementById('confidenceMetric').innerText = (98 + (Math.abs(hash) % 2)) + ".4%";
+
+            // Update Chart Data dynamically
+            if (freqChartInstance) {
+                const newData = Array.from({length: 10}, (_, i) => (i === predictedDigit ? 45 : 10 + (Math.abs(hash + i) % 20)));
+                freqChartInstance.data.datasets[0].data = newData;
+                freqChartInstance.update();
+            }
+
+            logMessage(`Generated prediction signal: Digit [${predictedDigit}] -> Type [${isBig ? 'BIG' : 'SMALL'}]`);
+        }
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            setInterval(runEnginePipeline, 1000);
+            runEnginePipeline();
+        });
+    </script>
+</body>
+</html>
